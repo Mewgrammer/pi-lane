@@ -24,9 +24,12 @@ export const TILES: TileDefinition[] = [
     name: 'Start/Finish',
     type: 'start-finish',
     carreraRef: '20515',
+    gridWidth: 1,
+    gridHeight: 2,
+    image: '/tiles/start-finish.png',
     connectors: [
-      { side: 'right', role: 'entry' },
-      { side: 'left', role: 'exit' },
+      { side: 'bottom', role: 'entry' },
+      { side: 'top', role: 'exit' },
     ],
   },
   {
@@ -34,19 +37,25 @@ export const TILES: TileDefinition[] = [
     name: 'Straight',
     type: 'straight',
     carreraRef: '20509',
+    gridWidth: 1,
+    gridHeight: 2,
+    image: '/tiles/straight.png',
     connectors: [
-      { side: 'right', role: 'entry' },
-      { side: 'left', role: 'exit' },
+      { side: 'bottom', role: 'entry' },
+      { side: 'top', role: 'exit' },
     ],
   },
   {
     id: 'straight-1-3',
-    name: 'Straight 1/3',
+    name: 'Short',
     type: 'straight',
     carreraRef: '20611',
+    gridWidth: 1,
+    gridHeight: 1,
+    image: '/tiles/straight-short.png',
     connectors: [
-      { side: 'right', role: 'entry' },
-      { side: 'left', role: 'exit' },
+      { side: 'bottom', role: 'entry' },
+      { side: 'top', role: 'exit' },
     ],
   },
   {
@@ -54,12 +63,15 @@ export const TILES: TileDefinition[] = [
     name: 'Corner R1',
     type: 'corner',
     carreraRef: '20571',
+    gridWidth: 2,
+    gridHeight: 2,
+    image: '/tiles/corner-r1.png',
     curveDirection: 'right',
     curveAngle: 60,
     curveRadius: 'R1',
     connectors: [
-      { side: 'right', role: 'entry' },
-      { side: 'top', role: 'exit' },
+      { side: 'bottom', role: 'entry' },
+      { side: 'right', role: 'exit' },
     ],
   },
   {
@@ -67,25 +79,15 @@ export const TILES: TileDefinition[] = [
     name: 'Corner R2',
     type: 'corner',
     carreraRef: '20572',
+    gridWidth: 2,
+    gridHeight: 2,
+    image: '/tiles/corner-r2.png',
     curveDirection: 'right',
     curveAngle: 30,
     curveRadius: 'R2',
     connectors: [
-      { side: 'right', role: 'entry' },
-      { side: 'top', role: 'exit' },
-    ],
-  },
-  {
-    id: 'corner-r3',
-    name: 'Corner R3',
-    type: 'corner',
-    carreraRef: '20573',
-    curveDirection: 'right',
-    curveAngle: 30,
-    curveRadius: 'R3',
-    connectors: [
-      { side: 'right', role: 'entry' },
-      { side: 'top', role: 'exit' },
+      { side: 'bottom', role: 'entry' },
+      { side: 'right', role: 'exit' },
     ],
   },
 ];
@@ -115,18 +117,68 @@ export function getConnectorSides(tile: TileDefinition, rotation: 0 | 90 | 180 |
   return tile.connectors.map((c) => rotateSide(c.side, rotation));
 }
 
-// Get adjacent grid position for a side
-export function getAdjacentPos(x: number, y: number, side: Side): { x: number; y: number } {
+// Get rotated grid dimensions (width/height swap on 90/270 rotation)
+export function getRotatedDimensions(
+  tile: TileDefinition,
+  rotation: 0 | 90 | 180 | 270,
+): { width: number; height: number } {
+  if (rotation === 90 || rotation === 270) {
+    return { width: tile.gridHeight, height: tile.gridWidth };
+  }
+  return { width: tile.gridWidth, height: tile.gridHeight };
+}
+
+// Get all grid cells occupied by a placed tile
+export function getOccupiedCells(
+  gridX: number,
+  gridY: number,
+  tile: TileDefinition,
+  rotation: 0 | 90 | 180 | 270,
+): { x: number; y: number }[] {
+  const { width, height } = getRotatedDimensions(tile, rotation);
+  const cells: { x: number; y: number }[] = [];
+  for (let dx = 0; dx < width; dx++) {
+    for (let dy = 0; dy < height; dy++) {
+      cells.push({ x: gridX + dx, y: gridY + dy });
+    }
+  }
+  return cells;
+}
+
+// Get edge cells for a specific side of a multi-cell tile
+export function getEdgeCells(
+  gridX: number,
+  gridY: number,
+  tile: TileDefinition,
+  rotation: 0 | 90 | 180 | 270,
+  side: Side,
+): { x: number; y: number }[] {
+  const { width, height } = getRotatedDimensions(tile, rotation);
+  const cells: { x: number; y: number }[] = [];
+
   switch (side) {
     case 'top':
-      return { x, y: y - 1 };
+      for (let dx = 0; dx < width; dx++) {
+        cells.push({ x: gridX + dx, y: gridY - 1 });
+      }
+      break;
     case 'bottom':
-      return { x, y: y + 1 };
+      for (let dx = 0; dx < width; dx++) {
+        cells.push({ x: gridX + dx, y: gridY + height });
+      }
+      break;
     case 'left':
-      return { x: x - 1, y };
+      for (let dy = 0; dy < height; dy++) {
+        cells.push({ x: gridX - 1, y: gridY + dy });
+      }
+      break;
     case 'right':
-      return { x: x + 1, y };
+      for (let dy = 0; dy < height; dy++) {
+        cells.push({ x: gridX + width, y: gridY + dy });
+      }
+      break;
   }
+  return cells;
 }
 
 // Check if a tile at position has a connector on the given side
@@ -152,6 +204,25 @@ export function areTilesConnected(
   return tile1HasConnector && tile2HasConnector;
 }
 
+// Find a placed tile that occupies a specific cell
+export function findTileAtCell(
+  cellX: number,
+  cellY: number,
+  allTiles: PlacedTile[],
+  excludeId?: string,
+): PlacedTile | undefined {
+  for (const placed of allTiles) {
+    if (placed.id === excludeId) continue;
+    const def = getTileById(placed.tileId);
+    if (!def) continue;
+    const cells = getOccupiedCells(placed.gridX, placed.gridY, def, placed.rotation);
+    if (cells.some((c) => c.x === cellX && c.y === cellY)) {
+      return placed;
+    }
+  }
+  return undefined;
+}
+
 // Check if a placed tile is connected to any neighbor
 export function isTileConnected(
   tile: TileDefinition,
@@ -164,14 +235,17 @@ export function isTileConnected(
   const sides = getConnectorSides(tile, rotation);
 
   for (const side of sides) {
-    const adj = getAdjacentPos(gridX, gridY, side);
-    const neighbor = allTiles.find(
-      (t) => t.gridX === adj.x && t.gridY === adj.y && t.id !== excludeId,
-    );
-    if (neighbor) {
-      const neighborDef = getTileById(neighbor.tileId);
-      if (neighborDef && areTilesConnected(tile, rotation, neighborDef, neighbor.rotation, side)) {
-        return true;
+    const edgeCells = getEdgeCells(gridX, gridY, tile, rotation, side);
+    for (const cell of edgeCells) {
+      const neighbor = findTileAtCell(cell.x, cell.y, allTiles, excludeId);
+      if (neighbor) {
+        const neighborDef = getTileById(neighbor.tileId);
+        if (
+          neighborDef &&
+          areTilesConnected(tile, rotation, neighborDef, neighbor.rotation, side)
+        ) {
+          return true;
+        }
       }
     }
   }
@@ -191,26 +265,38 @@ export function getConnectedSides(
   const sides = getConnectorSides(tile, rotation);
 
   for (const side of sides) {
-    const adj = getAdjacentPos(gridX, gridY, side);
-    const neighbor = allTiles.find(
-      (t) => t.gridX === adj.x && t.gridY === adj.y && t.id !== excludeId,
-    );
-    if (neighbor) {
-      const neighborDef = getTileById(neighbor.tileId);
-      if (neighborDef && areTilesConnected(tile, rotation, neighborDef, neighbor.rotation, side)) {
-        connected.push(side);
+    const edgeCells = getEdgeCells(gridX, gridY, tile, rotation, side);
+    for (const cell of edgeCells) {
+      const neighbor = findTileAtCell(cell.x, cell.y, allTiles, excludeId);
+      if (neighbor) {
+        const neighborDef = getTileById(neighbor.tileId);
+        if (
+          neighborDef &&
+          areTilesConnected(tile, rotation, neighborDef, neighbor.rotation, side)
+        ) {
+          connected.push(side);
+          break; // Found connection on this side
+        }
       }
     }
   }
   return connected;
 }
 
-// Check if position is occupied
+// Check if any cell in the proposed position is occupied
 export function isPositionOccupied(
   gridX: number,
   gridY: number,
+  tile: TileDefinition,
+  rotation: 0 | 90 | 180 | 270,
   allTiles: PlacedTile[],
   excludeId?: string,
 ): boolean {
-  return allTiles.some((t) => t.gridX === gridX && t.gridY === gridY && t.id !== excludeId);
+  const cells = getOccupiedCells(gridX, gridY, tile, rotation);
+  for (const cell of cells) {
+    if (findTileAtCell(cell.x, cell.y, allTiles, excludeId)) {
+      return true;
+    }
+  }
+  return false;
 }

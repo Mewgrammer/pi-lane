@@ -67,7 +67,7 @@ export const useTrackEditorStore = defineStore('trackEditor', () => {
   }
 
   function updateDragPosition(pixelX: number, pixelY: number): void {
-    if (!isDragging.value) return;
+    if (!isDragging.value || !dragTileId.value) return;
 
     const gx = pixelToGrid(pixelX);
     const gy = pixelToGrid(pixelY);
@@ -75,13 +75,20 @@ export const useTrackEditorStore = defineStore('trackEditor', () => {
     dragGridX.value = gx;
     dragGridY.value = gy;
 
-    // Check collision
-    dragValid.value = !isPositionOccupied(
-      gx,
-      gy,
-      currentTrack.value.tiles,
-      dragMovingId.value ?? undefined,
-    );
+    // Check collision with multi-cell awareness
+    const tileDef = getTileById(dragTileId.value);
+    if (tileDef) {
+      dragValid.value = !isPositionOccupied(
+        gx,
+        gy,
+        tileDef,
+        dragRotation.value,
+        currentTrack.value.tiles,
+        dragMovingId.value ?? undefined,
+      );
+    } else {
+      dragValid.value = false;
+    }
   }
 
   function endDrag(): { placed: boolean; id?: string } {

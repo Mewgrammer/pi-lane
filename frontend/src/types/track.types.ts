@@ -15,12 +15,19 @@ export interface TileDefinition {
   name: string;
   type: TileType;
   carreraRef: string;
+
+  // Grid size (in grid cells) - proportional to physical dimensions
+  gridWidth: number;
+  gridHeight: number;
+
+  // Image path for rendering
+  image: string;
+
   // Connectors in default orientation (0° rotation)
-  // Each connector has a side and whether it's entry or exit
   connectors: { side: Side; role: 'entry' | 'exit' }[];
-  // For corners: internal curve direction
+
+  // For corners: curve info
   curveDirection?: 'right' | 'left';
-  // Internal curve info (doesn't affect grid, just for data)
   curveAngle?: number;
   curveRadius?: string;
 }

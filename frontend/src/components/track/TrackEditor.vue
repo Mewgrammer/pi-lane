@@ -11,20 +11,28 @@ const store = useTrackEditorStore();
 const canvasRef = ref<HTMLElement | null>(null);
 
 function getTileStyle(placed: PlacedTile) {
+  const tileDef = store.getTileById(placed.tileId);
+  const gw = tileDef?.gridWidth ?? 1;
+  const gh = tileDef?.gridHeight ?? 1;
   return {
     left: `${placed.gridX * CELL_SIZE}px`,
     top: `${placed.gridY * CELL_SIZE}px`,
-    width: `${CELL_SIZE}px`,
-    height: `${CELL_SIZE}px`,
+    width: `${gw * CELL_SIZE}px`,
+    height: `${gh * CELL_SIZE}px`,
   };
 }
 
-const dragPreviewStyle = computed(() => ({
-  left: `${store.dragGridX * CELL_SIZE}px`,
-  top: `${store.dragGridY * CELL_SIZE}px`,
-  width: `${CELL_SIZE}px`,
-  height: `${CELL_SIZE}px`,
-}));
+const dragPreviewStyle = computed(() => {
+  const tileDef = store.dragTileId ? store.getTileById(store.dragTileId) : null;
+  const gw = tileDef?.gridWidth ?? 1;
+  const gh = tileDef?.gridHeight ?? 1;
+  return {
+    left: `${store.dragGridX * CELL_SIZE}px`,
+    top: `${store.dragGridY * CELL_SIZE}px`,
+    width: `${gw * CELL_SIZE}px`,
+    height: `${gh * CELL_SIZE}px`,
+  };
+});
 
 function onPaletteDrag(event: DragEvent, tileId: string) {
   if (!event.dataTransfer) return;
@@ -186,7 +194,6 @@ function saveTrack() {
             <TileRenderer
               v-if="store.getTileById(placed.tileId)"
               :tile="store.getTileById(placed.tileId)!"
-              :connected-sides="store.getPlacedConnectedSides(placed.id)"
             />
           </div>
         </div>
